@@ -1,0 +1,132 @@
+# BiomeMap classification rules.
+#
+# Each domain is a list of rules evaluated top to bottom. The first rule whose `when`
+# expression is true for a pixel assigns its biome.
+# Expressions are numpy expressions over these variables:
+#   lc       WorldCover class (compare with TREE, SHRUB, GRASS, CROP, BUILT, BARE, SNOW,
+#            WATER, WETLAND, MANGROVE, MOSS)
+#   elev     elevation (m; negative = ocean depth)
+#   slope    slope in degrees at ~250-500 m resolution
+#   relief   max - min elevation within ~4 km (m)
+#   T        annual mean temperature (degC, lapse-rate corrected)
+#   Tmin     min temperature of the coldest month (degC)
+#   Twarm    mean temperature of the warmest quarter (degC)
+#   P        annual precipitation (mm)
+#   lat, lon coordinates (degrees)
+#   coast    land pixel touching ocean-like water
+#   noise    smooth random field 0..1 used for patchy variant biomes
+#   isin(lc, [A, B])  membership test
+# Named `defs` may be used in later defs and rules.
+
+defs:
+  arid: "P < 20 * T + 280"
+  desertic: "P < (20 * T + 280) / 2"
+  rugged: "(slope >= 14) & (relief > 600)"
+  alpine: "(Twarm < 10) & (relief > 300) & (elev > 500)"
+  tundra: "Twarm < 10"
+  hawaii: "(lon < -150) & (lat < 25)"
+  tropical: "((Tmin >= 14) & (P >= 1000)) | (hawaii & (P >= 1000))"
+  rocky: "isin(lc, [BARE, MOSS])"
+  open_land: "isin(lc, [GRASS, SHRUB, CROP, BARE, MOSS])"
+  frozen_zone: "lat >= 59"
+  warm_zone: "lat < 25.3"
+  lukewarm_zone: "(lat < 31) | ((lon > -98) & (lat < 33.5))"
+  cold_zone: "((lon < -115) & (lat >= 38)) | ((lon > -95) & (lat >= 41)) | (lat >= 50)"
+  deep: "elev < -200"
+
+sea:
+  - {biome: deep_frozen_ocean,   when: "frozen_zone & deep"}
+  - {biome: frozen_ocean,        when: "frozen_zone"}
+  - {biome: warm_ocean,          when: "warm_zone"}
+  - {biome: deep_lukewarm_ocean, when: "lukewarm_zone & deep"}
+  - {biome: lukewarm_ocean,      when: "lukewarm_zone"}
+  - {biome: deep_cold_ocean,     when: "cold_zone & deep"}
+  - {biome: cold_ocean,          when: "cold_zone"}
+  - {biome: deep_ocean,          when: "deep"}
+  - {biome: ocean,               when: "True"}
+
+inland_water:
+  - {biome: frozen_river, when: "T < 0"}
+  - {biome: river,        when: "True"}
+
+land:
+  # Glaciers and permanent snow
+  - {biome: jagged_peaks,  when: "(lc == SNOW) & (slope >= 22) & (relief > 800)"}
+  - {biome: ice_spikes,    when: "(lc == SNOW) & (elev < 1200) & (slope < 6)"}
+  - {biome: frozen_peaks,  when: "(lc == SNOW) & (relief > 500)"}
+  - {biome: snowy_slopes,  when: "lc == SNOW"}
+
+  # Above the treeline in the mountains
+  - {biome: jagged_peaks,  when: "alpine & rocky & (T < -4) & (slope >= 25)"}
+  - {biome: frozen_peaks,  when: "alpine & rocky & (T < -6)"}
+  - {biome: stony_peaks,   when: "alpine & rocky"}
+  - {biome: grove,         when: "alpine & (lc == TREE)"}
+  - {biome: snowy_slopes,  when: "alpine & (T < -3)"}
+  - {biome: meadow,        when: "alpine"}
+
+  # Arctic lowlands
+  - {biome: snowy_taiga,   when: "tundra & (lc == TREE)"}
+  - {biome: snowy_beach,   when: "tundra & coast"}
+  - {biome: snowy_plains,  when: "tundra"}
+
+  # Shorelines and wetlands
+  - {biome: mangrove_swamp, when: "lc == MANGROVE"}
+  - {biome: stony_shore,    when: "coast & ((slope >= 8) | ((lc == BARE) & (relief > 100)))"}
+  - {biome: snowy_beach,    when: "coast & (T < 1) & open_land"}
+  - {biome: beach,          when: "coast & (slope < 5) & open_land"}
+  - {biome: snowy_plains,   when: "(lc == WETLAND) & (T < -2)"}
+  - {biome: swamp,          when: "lc == WETLAND"}
+
+  # Tropics (Hawaii, south Florida)
+  - {biome: bamboo_jungle, when: "tropical & (lc == TREE) & (P >= 2400)"}
+  - {biome: jungle,        when: "tropical & (lc == TREE) & (P >= 1700)"}
+  - {biome: sparse_jungle, when: "tropical & (lc == TREE)"}
+  - {biome: sparse_jungle, when: "hawaii & isin(lc, [GRASS, SHRUB]) & (P >= 2000)"}
+
+  # Dry lands (badlands = rugged, mid-elevation plateau country; low basins stay desert)
+  - {biome: eroded_badlands,   when: "arid & isin(lc, [BARE, SHRUB]) & (relief > 450) & (slope >= 12) & (T >= 7) & (elev > 700) & (elev < 2600)"}
+  - {biome: badlands,          when: "arid & isin(lc, [BARE, SHRUB, GRASS]) & (relief > 200) & (T >= 7) & (elev > 700) & (elev < 2600)"}
+  - {biome: wooded_badlands,   when: "arid & (lc == TREE) & (T >= 7) & (relief > 150)"}
+  - {biome: windswept_savanna, when: "arid & (T >= 15) & (slope >= 10)"}
+  - {biome: desert,            when: "desertic & (lc != TREE)"}
+  - {biome: savanna_plateau,   when: "arid & (T >= 12) & (elev > 700)"}
+  - {biome: savanna,           when: "arid & (T >= 12)"}
+  - {biome: taiga,             when: "arid & (lc == TREE)"}
+  - {biome: windswept_hills,   when: "arid & (slope >= 12)"}
+  - {biome: plains,            when: "arid"}
+
+  # Rainforests of the Pacific Northwest and Southeast Alaska
+  - {biome: old_growth_spruce_taiga, when: "(lc == TREE) & (lon < -116) & (P >= 2000) & (T >= 3)"}
+  - {biome: old_growth_pine_taiga,   when: "(lc == TREE) & (lon < -116) & (P >= 1200) & (T >= 4)"}
+
+  # Steep mountain terrain (the humid East's rugged hardwood ridges become dark forest)
+  - {biome: dark_forest,              when: "(lc == TREE) & (lon > -100) & (P >= 1300) & (relief > 250) & (T >= 8) & (T < 16)"}
+  - {biome: grove,                    when: "rugged & (lc == TREE) & (T < 3)"}
+  - {biome: windswept_forest,         when: "rugged & (lc == TREE)"}
+  - {biome: windswept_gravelly_hills, when: "rugged & rocky"}
+  - {biome: windswept_hills,          when: "rugged & isin(lc, [GRASS, SHRUB])"}
+
+  # Forests
+  - {biome: snowy_taiga,   when: "(lc == TREE) & (T < -1)"}
+  - {biome: taiga,         when: "(lc == TREE) & ((T < 5) | ((lon < -100) & (T < 13)))"}
+  - {biome: sparse_jungle, when: "(lc == TREE) & (T >= 21)"}
+  - {biome: savanna,       when: "(lc == TREE) & (lon < -116) & (T >= 13) & (P < 800)"}
+  - {biome: birch_forest,  when: "(lc == TREE) & (T < 9)"}
+  - {biome: dark_forest,   when: "(lc == TREE) & (P >= 1300) & (relief > 250) & (T < 16)"}
+  - {biome: flower_forest, when: "(lc == TREE) & (noise > 0.8)"}
+  - {biome: forest,        when: "lc == TREE"}
+
+  # Open country
+  - {biome: snowy_plains,             when: "T < -1"}
+  - {biome: savanna,                  when: "(lc == SHRUB) & (T >= 14)"}
+  - {biome: meadow,                   when: "(lc == GRASS) & (elev > 2000)"}
+  # Tallgrass prairie climate (warm, moderately wet grassland) gets patches of sunflowers
+  - {biome: sunflower_plains,         when: "isin(lc, [GRASS, CROP]) & (lon > -103) & (P > 550) & (P < 1050) & (T > 10) & (T < 16) & (noise > 0.62)"}
+  - {biome: savanna,                  when: "isin(lc, [GRASS, SHRUB]) & (T >= 19)"}
+  - {biome: windswept_gravelly_hills, when: "(lc == BARE) & (slope >= 10)"}
+  - {biome: desert,                   when: "lc == BARE"}
+  - {biome: plains,                   when: "True"}
+
+# Small islands painted with a special biome: [lon, lat, biome]
+easter_eggs:
+  - [-119.48, 33.25, mushroom_fields]   # San Nicolas Island, CA

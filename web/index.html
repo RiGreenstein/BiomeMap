@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiomeMap: Minecraft Biomes of the USA</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="description" content="An interactive map of the United States where every location is classified into a Minecraft-style biome." />
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <header id="title">
+      <h1>BIOMEMAP</h1>
+      <div id="splash"></div>
+    </header>
+
+    <div id="f3" class="f3"></div>
+
+    <section id="legend" class="mc-panel">
+      <div class="legend-head">
+        <h2>Biomes</h2>
+        <button class="mc-btn small" data-act="toggle" title="Collapse">▾</button>
+      </div>
+      <div class="legend-actions">
+        <button class="mc-btn small" data-act="all">Show All</button>
+        <button class="mc-btn small" data-act="none">Hide All</button>
+      </div>
+      <p class="legend-hint">Click a name to highlight it. Click the box to show or hide it.</p>
+      <div class="legend-list"></div>
+    </section>
+
+    <nav id="hotbar">
+      <div class="hotbar-row">
+        <select id="tp-biome" class="mc-select" title="Teleport destination"></select>
+        <button id="btn-tp" class="mc-btn">Random Teleport</button>
+        <button id="btn-share" class="mc-btn">Copy Link</button>
+        <button id="btn-f3" class="mc-btn" title="Toggle debug screen (F3)">F3</button>
+        <button id="btn-options" class="mc-btn">Options...</button>
+      </div>
+      <div id="options" class="hotbar-row options">
+        <button id="jump-conus" class="mc-btn">Lower 48</button>
+        <button id="jump-alaska" class="mc-btn">Alaska</button>
+        <button id="jump-hawaii" class="mc-btn">Hawaii</button>
+        <button id="opt-shading" class="mc-btn"></button>
+        <button id="opt-blocks" class="mc-btn"></button>
+        <button id="opt-borders" class="mc-btn"></button>
+        <button id="opt-cities" class="mc-btn"></button>
+      </div>
+    </nav>
+
+    <div id="chat"></div>
+    <div id="tooltip" class="mc-tooltip" hidden></div>
+    <div id="pinned" class="mc-tooltip pinned" hidden></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
